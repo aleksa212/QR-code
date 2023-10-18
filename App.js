@@ -1,8 +1,17 @@
 import { StatusBar } from "expo-status-bar";
-import { StyleSheet, Text, View, Button, TextInput } from "react-native";
+import {
+  StyleSheet,
+  Text,
+  View,
+  TouchableOpacity,
+  TextInput,
+  Image,
+} from "react-native";
 import { useState, useEffect } from "react";
 import { BarCodeScanner } from "expo-barcode-scanner";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+
+const IP = "http://192.168.0.4:4000";
 
 export default function App() {
   const [hasPermission, setHasPermission] = useState(null);
@@ -51,9 +60,8 @@ export default function App() {
 
   const fetchReservationById = async () => {
     const token = await AsyncStorage.getItem("nc_token");
-    console.log(token, 'here');
     const response = await fetch(
-      `http://192.168.0.11:4000/api/reservations/single/${reservationId}`,
+      `${IP}/api/reservations/single/${reservationId}`,
       {
         headers: {
           "Content-Type": "application/json",
@@ -75,8 +83,7 @@ export default function App() {
       email: email,
       password: password,
     };
-
-    const response = await fetch(`http://192.168.0.11:4000/api/auth/login`, {
+    const response = await fetch(`${IP}/api/auth/login`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -97,7 +104,7 @@ export default function App() {
   const completeReservation = async () => {
     const token = AsyncStorage.getItem("nc_token");
     const response = await fetch(
-      `http://192.168.0.11:4000/api/reservations/complete/${reservationId}`,
+      `${IP}/api/reservations/complete/${reservationId}`,
       {
         method: "PUT",
         headers: {
@@ -135,10 +142,9 @@ export default function App() {
     return (
       <View style={styles.container}>
         <Text style={{ margin: 10 }}>No access to camera</Text>
-        <Button
-          title={"Allow Camera"}
-          onPress={() => askForCameraPermission()}
-        />
+        <TouchableOpacity onPress={() => askForCameraPermission()}>
+          <Text>Allow Camera</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -147,6 +153,10 @@ export default function App() {
     <>
       {isLoggedIn && !reservationId && (
         <View style={styles.container}>
+          <Image
+            source={require("./assets/where2go.png")}
+            style={styles.logo}
+          />
           <View style={styles.barcodebox}>
             <BarCodeScanner
               onBarCodeScanned={shouldScan && handleBarCodeScanned}
@@ -154,13 +164,14 @@ export default function App() {
             />
           </View>
 
-          <Button
-            title={"Scan"}
+          <TouchableOpacity
             onPress={() => {
               setShouldScan(true);
             }}
-            color="tomato"
-          />
+            style={styles.scanBg}
+          >
+            <Text style={styles.scanButton}>Scan Reservation</Text>
+          </TouchableOpacity>
         </View>
       )}
       {isLoggedIn && reservationId && reservation && (
@@ -173,41 +184,49 @@ export default function App() {
             <Text style={styles.maintext}>Table: {reservation.table}</Text>
             <Text style={styles.maintext}>Status: {reservation.status}</Text>
           </View>
-          {/* Hide complete button if reservation is already completed. */}
+          {/* Hide complete TouchableOpacity if reservation is already completed. */}
           {reservation.status !== "Complete" && (
             <>
-              <Button
-                title={"Complete"}
-                onPress={completeReservation}
-                color="tomato"
-              />
-              <Button title={"Cancel"} onPress={resetState} color="tomato" />
+              <TouchableOpacity onPress={completeReservation} color="tomato">
+                <Text>Complete</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={resetState} color="tomato">
+                <Text>Cancel</Text>
+              </TouchableOpacity>
             </>
           )}
           {reservation.status === "Complete" && (
-            <Button title={"Scan Again?"} onPress={resetState} color="tomato" />
+            <TouchableOpacity onPress={resetState} color="tomato">
+              <Text>Scan Again?</Text>
+            </TouchableOpacity>
           )}
         </View>
       )}
 
       {!isLoggedIn && (
         <View style={styles.containerGap}>
-          <Text stlye={styles.maintext}>Log in</Text>
-          <View>
-            <Text>Enter your email</Text>
+          <Image
+            source={require("./assets/where2go.png")}
+            style={styles.logo}
+          />
+          <Text style={styles.secondaryText}>Login to access scan</Text>
+          <View style={styles.loginInfo}>
+            <Text style={styles.label}>Enter your email</Text>
             <TextInput
               style={styles.input}
               placeholder="Enter your email"
               onChangeText={(value) => setEmail(value)}
             />
-            <Text>Enter your password</Text>
+            <Text style={styles.label}>Enter your password</Text>
             <TextInput
               style={styles.input}
               placeholder="Enter your password"
               secureTextEntry={true}
               onChangeText={(value) => setPassword(value)}
             />
-            <Button title={"Log in"} onPress={handleLogin} />
+            <TouchableOpacity style={styles.button} onPress={handleLogin}>
+              <Text style={styles.buttonText}>Log in</Text>
+            </TouchableOpacity>
           </View>
         </View>
       )}
@@ -221,7 +240,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-
+  loginInfo: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    width: "80%",
+    gap: 9,
+    marginTop: 50,
+  },
+  label: {
+    alignSelf: "baseline",
+  },
   containerGap: {
     flex: 1,
     backgroundColor: "#fff",
@@ -229,15 +258,37 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     flexDirection: "column",
     gap: 3,
+    width: "100%",
+  },
+  button: {
+    display: "flex",
+    width: 150,
+    backgroundColor: "#475DDB",
+    padding: 10,
+    borderRadius: 10,
+    textAlign: "center",
+    marginTop: 20,
   },
 
+  buttonText: {
+    color: "white",
+    textAlign: "center",
+  },
+  logo: {
+    width: "50%",
+    height: 60,
+    resizeMode: "contain",
+  },
   input: {
     height: 40,
     borderColor: "#7a42f4",
     borderWidth: 1,
     padding: 3,
+    paddingLeft: 10,
+    width: "100%",
+    borderRadius: 10,
+    marginTop: 10,
   },
-
   barcodebox: {
     alignItems: "center",
     justifyContent: "center",
@@ -246,6 +297,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     borderRadius: 30,
     backgroundColor: "tomato",
+    marginTop: 20,
   },
   completeBox: {
     alignItems: "center",
@@ -269,6 +321,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     margin: 20,
   },
+  secondaryText: {
+    fontSize: 24,
+    marginTop: 20,
+  },
   successText: {
     fontSize: 16,
     margin: "auto",
@@ -278,5 +334,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     margin: "auto",
     color: "white",
+  },
+  scanButton: {
+    marginTop: 20,
+    color: "white",
+    backgroundColor: "#475DDB",
+    paddingLeft: 30,
+    paddingRight: 30,
+    paddingTop: 10,
+    paddingBottom: 10,
+    borderRadius: 100,
   },
 });
